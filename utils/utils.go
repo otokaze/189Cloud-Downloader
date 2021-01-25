@@ -11,8 +11,6 @@ import (
 	"sort"
 	"strings"
 	"time"
-
-	uuid "github.com/satori/go.uuid"
 )
 
 const (
@@ -91,16 +89,6 @@ func PcClientInfoSuffixParam() string {
 
 func DateOfGmtStr() string {
 	return time.Now().UTC().Format(http.TimeFormat)
-}
-
-func XRequestId() string {
-	u4 := uuid.NewV4()
-	return strings.ToUpper(u4.String())
-}
-
-func Uuid() string {
-	u4 := uuid.NewV4()
-	return u4.String()
 }
 
 // CheckFileNameValid 检测文件名是否有效，包含特殊字符则无效
