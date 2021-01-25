@@ -241,8 +241,8 @@ UserAccount: otokaze
 ```
 
 ### Donate
-![weixin]("https://raw.githubusercontent.com/otokaze/189Cloud-Downloader/main/donate_weixin.png")
-![alipay]("https://raw.githubusercontent.com/otokaze/189Cloud-Downloader/main/donate_alipay.png")
+![weixin]("https://raw.githubusercontent.com/otokaze/189Cloud-Downloader/master/donate_weixin.png")
+![alipay]("https://raw.githubusercontent.com/otokaze/189Cloud-Downloader/master/donate_alipay.png")
 
 ### 感谢
 本项目部分参考了以下项目实现免验证登陆
