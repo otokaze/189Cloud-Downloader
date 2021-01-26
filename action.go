@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"flag"
 	"fmt"
@@ -14,6 +13,7 @@ import (
 
 	"github.com/otokaze/go-kit/log"
 	"github.com/otokaze/go-kit/printcolor"
+	"github.com/peterh/liner"
 	"github.com/urfave/cli/v2"
 )
 
@@ -104,12 +104,12 @@ func lsAction(ctx *cli.Context) (err error) {
 	}
 	if path == "~" || paths.GetRootPath() != nil && paths.GetRootPath().FileId == "-11" {
 		if dirs, _, err = d.GetHomeDirList(ctx.Context, pn, ps, order, path); err != nil {
-			log.Error("d.GetHomeDirList(%s) pn(%d) ps(%d) fileId(%s) error(%v)", pn, ps, path, err)
+			log.Error("d.GetHomeDirList() pn(%d) ps(%d) fileId(%s) error(%v)", pn, ps, path, err)
 			return
 		}
 	} else if share != nil {
 		if dirs, _, err = d.GetShareDirList(ctx.Context, share, pn, ps, order, path); err != nil {
-			log.Error("d.GetShareDirList(%s) pn(%d) ps(%d) fileId(%s) error(%v)", pn, ps, path, err)
+			log.Error("d.GetShareDirList() pn(%d) ps(%d) fileId(%s) error(%v)", pn, ps, path, err)
 			return
 		}
 	} else {
@@ -290,6 +290,17 @@ func getAction(ctx *cli.Context) (err error) {
 }
 
 func afterAction(ctx *cli.Context) (err error) {
+	line := liner.NewLiner()
+	line.SetCtrlCAborts(true)
+	defer line.Close()
+	line.SetCompleter(func(line string) (cs []string) {
+		for _, c := range ctx.App.Commands {
+			if strings.HasPrefix(c.Name, strings.ToLower(line)) {
+				cs = append(cs, c.Name)
+			}
+		}
+		return
+	})
 	for {
 		var processName string
 		if paths != nil {
@@ -297,10 +308,17 @@ func afterAction(ctx *cli.Context) (err error) {
 		} else if share != nil {
 			processName = share.GetShortName()
 		}
-		print(processName, "> ")
-		scanner := bufio.NewScanner(os.Stdin)
-		scanner.Scan()
-		args := strings.Split(scanner.Text(), " ")
+		var input string
+		if input, err = line.Prompt(processName + "> "); err != nil {
+			if err == liner.ErrPromptAborted {
+				err = nil
+				return
+			}
+			log.Error("line.Prompt() error(%v)", err)
+			continue
+		}
+		line.AppendHistory(input)
+		args := strings.Split(input, " ")
 		if args[0] == "" {
 			continue
 		}
