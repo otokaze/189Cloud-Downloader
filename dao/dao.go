@@ -2,18 +2,27 @@ package dao
 
 import (
 	"crypto/tls"
+	"errors"
 	"net"
 	"net/http"
 	"time"
+
+	"github.com/otokaze/go-kit/progressbar"
+)
+
+var (
+	ErrCanceled = errors.New("Canceled")
 )
 
 type dao struct {
+	bar     *progressbar.Bar
 	httpCli *http.Client
 	token   *token
 }
 
 func New() *dao {
 	return &dao{
+		bar: progressbar.New(nil),
 		httpCli: &http.Client{
 			Transport: &http.Transport{
 				Proxy: nil,

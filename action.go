@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 
 	"github.com/otokaze/189Cloud-Downloader/dao"
@@ -51,6 +52,14 @@ func loginAction(ctx *cli.Context) (err error) {
 
 func logoutAction(ctx *cli.Context) (err error) {
 	return d.Logout(ctx.Context)
+}
+
+func versionAction(ctx *cli.Context) (err error) {
+	if version == "" {
+		version = "null"
+	}
+	println(ctx.App.Name, "version", version, runtime.GOOS)
+	return
 }
 
 func userInfoAction(ctx *cli.Context) (err error) {

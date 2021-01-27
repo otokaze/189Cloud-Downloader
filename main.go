@@ -2,14 +2,35 @@ package main
 
 import (
 	"os"
+	"os/signal"
 	"sort"
+	"syscall"
 
 	"github.com/urfave/cli/v2"
 )
 
-var (
-	err error
-)
+var version string
+
+func init() {
+	var c = make(chan os.Signal)
+	signal.Notify(c, syscall.SIGHUP, syscall.SIGINT, syscall.SIGKILL)
+	go func() {
+		for s := range c {
+			switch s {
+			case syscall.SIGKILL:
+				os.Exit(0)
+			case syscall.SIGHUP:
+				os.Exit(0)
+			case syscall.SIGINT:
+				if d.IsDownloading() {
+					d.StopDownload()
+					continue
+				}
+				os.Exit(0)
+			}
+		}
+	}()
+}
 
 func main() {
 	var app = &cli.App{
@@ -140,9 +161,28 @@ func main() {
 				Action: userInfoAction,
 				After:  afterAction,
 			},
+			{
+				Name:   "version",
+				Usage:  "查看当前版本号",
+				Action: versionAction,
+			},
 		},
-		Action:      afterAction,
-		Description: "",
+		Flags: []cli.Flag{
+			&cli.BoolFlag{
+				Name:    "version",
+				Aliases: []string{"v"},
+				Usage:   "查看当前版本号",
+				Value:   false,
+			},
+		},
+		Action: func(ctx *cli.Context) (err error) {
+			if ctx.Bool("version") || ctx.Bool("v") {
+				versionAction(ctx)
+				os.Exit(0)
+			}
+			afterAction(ctx)
+			return
+		},
 	}
 	sort.Sort(cli.FlagsByName(app.Flags))
 	if err := app.Run(os.Args); err != nil {

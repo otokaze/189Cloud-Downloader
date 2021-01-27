@@ -1,12 +1,11 @@
 # Binary name
 BINARY=189Cloud-Downloader
 VERSION=$(shell grep -E -o  v[0-9]+\.[0-9]+\.[0-9]+ CHANGELOG.md | head -1)
-BUILD_FLAGS="-s -w -X main.Version=${VERSION}"
+BUILD_FLAGS="-s -w -X main.version=${VERSION}"
 
 # Builds the project
 build:
 		go build -o ${BINARY} -ldflags ${BUILD_FLAGS}
-		go test -v
 # Installs our project: copies binaries
 install:
 		go install

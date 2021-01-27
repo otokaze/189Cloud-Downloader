@@ -5,6 +5,8 @@ github.com/mattn/go-runewidth v0.0.3 h1:a+kO+98RDGEfo6asOGMmpodZq4FNtnGP54yps8Bz
 github.com/mattn/go-runewidth v0.0.3/go.mod h1:LwmH8dsx7+W8Uxz3IHJYH5QSwggIsqBzpuz5H//U1FU=
 github.com/otokaze/go-kit v0.0.0-20210124134852-8a3e68727e37 h1:PmZPDsQOZ4YzZuAShx95buQNNMNwvpt8SjuiU1BOy64=
 github.com/otokaze/go-kit v0.0.0-20210124134852-8a3e68727e37/go.mod h1:51Xo2fbqw3dxEjDyHgJQ5WipcOPXs/Y+Zn3YtUGXeN8=
+github.com/otokaze/go-kit v0.0.0-20210127084449-6beab6a06ccb h1:iEABw3REnRKNxlrp4f9aF4NhOWCoJCISdeKN1/qM+LQ=
+github.com/otokaze/go-kit v0.0.0-20210127084449-6beab6a06ccb/go.mod h1:51Xo2fbqw3dxEjDyHgJQ5WipcOPXs/Y+Zn3YtUGXeN8=
 github.com/peterh/liner v1.2.1 h1:O4BlKaq/LWu6VRWmol4ByWfzx6MfXc5Op5HETyIy5yg=
 github.com/peterh/liner v1.2.1/go.mod h1:CRroGNssyjTd/qIG2FyxByd2S8JEAZXBl4qUrZf8GS0=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
