@@ -92,9 +92,15 @@ func main() {
 				ArgsUsage: "<fileId> or ./ <topath>?",
 				Flags: []cli.Flag{
 					&cli.IntFlag{
-						Name:  "c",
-						Usage: "并发数",
-						Value: 10,
+						Name:        "concurrency",
+						Aliases:     []string{"c"},
+						Usage:       "并发数",
+						DefaultText: "10",
+					},
+					&cli.StringFlag{
+						Name:        "tmp",
+						Usage:       "工作路径",
+						DefaultText: "/tmp",
 					},
 				},
 				Action: getAction,

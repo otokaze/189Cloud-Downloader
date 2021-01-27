@@ -26,22 +26,26 @@ func (d *dao) StopDownload() {
 	d.bar.Stop()
 }
 
-func (d *dao) Download(ctx context.Context, url, toPath string, c int) (err error) {
-	if info, err := os.Stat(toPath); err != nil {
-		if os.IsExist(err) {
-			log.Error("os.Stat(%s) error(%v)", toPath, err)
-			return err
-		}
-		if err = os.MkdirAll(toPath, 0777); err != nil {
-			log.Error("os.MkdirAll(%s, 0777) error(%v)", toPath)
-			return err
-		}
+func (d *dao) Download(ctx context.Context, url, toPath string, c int, tmpDirs ...string) (err error) {
+	if toPath = strings.TrimSpace(toPath); toPath == "" {
+		toPath, _ = os.Getwd()
 	} else {
-		if !info.IsDir() {
-			log.Error("toPath(%s) 文件下载路径必须是个目录！", toPath)
-			return nil
-		}
 		toPath = strings.TrimRight(toPath, "/")
+	}
+	if err = os.MkdirAll(toPath, 0777); err != nil {
+		log.Error("os.MkdirAll(%s, 0777) error(%v)", toPath)
+		return
+	}
+	var tmpPath string
+	if len(tmpDirs) == 0 || tmpDirs[0] == "" {
+		tmpPath = os.TempDir()
+	} else {
+		tmpPath = strings.TrimRight(tmpDirs[0], "/")
+	}
+	tmpPath = tmpPath + "/.downloding"
+	if err = os.MkdirAll(tmpPath, 0777); err != nil {
+		log.Error("os.MkdirAll(%s, 0777) error(%v)", tmpPath)
+		return
 	}
 	var req *http.Request
 	if req, err = http.NewRequest(http.MethodGet, url, nil); err != nil {
@@ -91,8 +95,8 @@ func (d *dao) Download(ctx context.Context, url, toPath string, c int) (err erro
 		c = 1
 	}
 	var tmpDir string
-	if tmpDir, err = ioutil.TempDir("", matchs[1]); err != nil {
-		log.Error("ioutil.TempDir('', %s)", matchs[1])
+	if tmpDir, err = ioutil.TempDir(tmpPath, matchs[1]); err != nil {
+		log.Error("ioutil.TempDir(%s, %s)", tmpPath, matchs[1])
 		return
 	}
 	d.bar.SetMax(b)
@@ -175,7 +179,7 @@ func (d *dao) Download(ctx context.Context, url, toPath string, c int) (err erro
 			return
 		}
 		if _, err = d.readTo(target, part); err != nil {
-			if err.Error() == ErrCanceled.Error() {
+			if err == ErrCanceled {
 				err = nil
 				return
 			}
@@ -214,7 +218,7 @@ func (d *dao) readTo(dst io.Writer, src io.Reader) (written int64, err error) {
 			}
 		}
 		if readErr != nil {
-			if readErr != io.EOF ||
+			if readErr != io.EOF &&
 				readErr != io.ErrUnexpectedEOF {
 				err = readErr
 				break

@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"runtime"
 	"strings"
 
@@ -237,13 +236,11 @@ func getAction(ctx *cli.Context) (err error) {
 		log.Error("请输入要下载的文件！格式：%s", ctx.Command.ArgsUsage)
 		return
 	}
-	var toPath string
-	if toPath = ctx.Args().Get(1); toPath == "" {
-		toPath, _ = os.Getwd()
-	}
-	toPath = strings.TrimSpace(toPath)
-	if toPath = strings.TrimRight(toPath, "/"); toPath == "" {
-		toPath = "/"
+	var c int
+	if c = ctx.Int("c"); c <= 0 {
+		if c = ctx.Int("concurrency"); c <= 0 {
+			c = 10
+		}
 	}
 	if user == nil {
 		log.Error("请先登陆189账号！")
@@ -291,10 +288,10 @@ func getAction(ctx *cli.Context) (err error) {
 			url, _ = d.GetDownloadURLFromShare(ctx.Context, share, pid, dir.FileID)
 		}
 		if url != "" {
-			d.Download(ctx.Context, url, path, ctx.Int("c"))
+			d.Download(ctx.Context, url, path, c, ctx.String("tmp"))
 		}
 	}
-	fn(dir, paths, toPath)
+	fn(dir, paths, ctx.Args().Get(1))
 	return
 }
 
@@ -327,12 +324,13 @@ func afterAction(ctx *cli.Context) (err error) {
 			continue
 		}
 		line.AppendHistory(input)
+		input = strings.TrimSpace(input)
 		args := strings.Split(input, " ")
 		if args[0] == "" {
 			continue
 		}
-		command := ctx.App.Command(args[0])
-		if command == nil {
+		var command *cli.Command
+		if command = ctx.App.Command(args[0]); command == nil {
 			log.Error("command(%s) not found!", args[0])
 			continue
 		}

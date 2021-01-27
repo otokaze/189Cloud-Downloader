@@ -198,8 +198,9 @@ USAGE:
    189Cloud-Downloader get [command options] <fileId> or ./ <topath>?
 
 OPTIONS:
-   -c value    并发数 (default: 10)
-   --help, -h  show help (default: false)
+   --concurrency value, -c value  并发数 (default: 10)
+   --tmp value                    工作路径 (default: /tmp)
+   --help, -h                     show help (default: false)
 ```
 #### Example
 下载指定 fileId 的文件|目录，并且指定保存目录为 /Users/otokaze/Downloads
