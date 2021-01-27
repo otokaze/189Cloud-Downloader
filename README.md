@@ -217,6 +217,10 @@ OPTIONS:
 个人收集电影...> cd 7142737850912085
 EVA 新世纪福...> get ./ /Users/otokaze/Downloads
 ```
+取消下载
+```
+^C (CTRL+C)
+```
 
 ### 查看当前登录的用户信息
 #### Example
