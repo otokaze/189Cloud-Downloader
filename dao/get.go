@@ -37,7 +37,7 @@ func (d *dao) Download(ctx context.Context, url, toPath string, c int, tmpDirs .
 	} else {
 		tmpPath = strings.TrimRight(tmpDirs[0], "/")
 	}
-	tmpPath = tmpPath + "/.downloding"
+	tmpPath = tmpPath + "/.downloading"
 	if err = os.MkdirAll(tmpPath, 0777); err != nil {
 		log.Error("os.MkdirAll(%s, 0777) error(%v)", tmpPath, err)
 		return
