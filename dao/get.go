@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/otokaze/go-kit/log"
+	"github.com/otokaze/go-kit/progressbar"
 )
 
 func (d *dao) IsDownloading() bool {
@@ -27,6 +28,7 @@ func (d *dao) StopDownload() {
 }
 
 func (d *dao) Download(ctx context.Context, url, toPath string, c int, tmpDirs ...string) (err error) {
+	d.bar = progressbar.New(nil)
 	if err = os.MkdirAll(toPath, 0777); err != nil {
 		log.Error("os.MkdirAll(%s, 0777) error(%v)", toPath, err)
 		return
