@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
 	"runtime"
 	"strings"
 
@@ -236,6 +237,12 @@ func getAction(ctx *cli.Context) (err error) {
 		log.Error("请输入要下载的文件！格式：%s", ctx.Command.ArgsUsage)
 		return
 	}
+	var toPath string
+	if toPath = ctx.Args().Get(1); toPath == "" {
+		toPath, _ = os.Getwd()
+	} else {
+		toPath = strings.TrimRight(toPath, "/")
+	}
 	var c int
 	if c = ctx.Int("c"); c <= 0 {
 		if c = ctx.Int("concurrency"); c <= 0 {
@@ -291,7 +298,7 @@ func getAction(ctx *cli.Context) (err error) {
 			d.Download(ctx.Context, url, path, c, ctx.String("tmp"))
 		}
 	}
-	fn(dir, paths, ctx.Args().Get(1))
+	fn(dir, paths, toPath)
 	return
 }
 

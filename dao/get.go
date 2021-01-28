@@ -27,13 +27,8 @@ func (d *dao) StopDownload() {
 }
 
 func (d *dao) Download(ctx context.Context, url, toPath string, c int, tmpDirs ...string) (err error) {
-	if toPath = strings.TrimSpace(toPath); toPath == "" {
-		toPath, _ = os.Getwd()
-	} else {
-		toPath = strings.TrimRight(toPath, "/")
-	}
 	if err = os.MkdirAll(toPath, 0777); err != nil {
-		log.Error("os.MkdirAll(%s, 0777) error(%v)", toPath)
+		log.Error("os.MkdirAll(%s, 0777) error(%v)", toPath, err)
 		return
 	}
 	var tmpPath string
@@ -44,7 +39,7 @@ func (d *dao) Download(ctx context.Context, url, toPath string, c int, tmpDirs .
 	}
 	tmpPath = tmpPath + "/.downloding"
 	if err = os.MkdirAll(tmpPath, 0777); err != nil {
-		log.Error("os.MkdirAll(%s, 0777) error(%v)", tmpPath)
+		log.Error("os.MkdirAll(%s, 0777) error(%v)", tmpPath, err)
 		return
 	}
 	var req *http.Request
