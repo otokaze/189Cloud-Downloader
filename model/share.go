@@ -2,7 +2,7 @@ package model
 
 type ShareInfo struct {
 	ShortCode  string
-	PassCode   string
+	AccessCode string
 	ShareID    string
 	VerifyCode string
 	Name       string

@@ -75,6 +75,7 @@ func (d *dao) GetShareDirList(ctx context.Context, share *model.ShareInfo, pn, p
 	}
 	var params = url.Values{
 		"shortCode":  []string{share.ShortCode},
+		"accessCode": []string{share.AccessCode},
 		"verifyCode": []string{share.VerifyCode},
 		"pageNum":    []string{strconv.Itoa(pn)},
 		"pageSize":   []string{strconv.Itoa(ps)},
@@ -93,11 +94,16 @@ func (d *dao) GetShareDirList(ctx context.Context, share *model.ShareInfo, pn, p
 		return
 	}
 	var res struct {
-		Data []*model.Dir  `json:"data"`
-		Path []*model.Path `json:"path"`
+		Data    []*model.Dir  `json:"data"`
+		Path    []*model.Path `json:"path"`
+		ErrorVO *struct{ ErrorMsg string }
 	}
 	if err = json.Unmarshal(body, &res); err != nil {
 		log.Error("json.Unmarshal() error(%v)", err)
+		return
+	}
+	if res.ErrorVO != nil {
+		err = errors.New(res.ErrorVO.ErrorMsg)
 		return
 	}
 	dirs, paths = res.Data, res.Path
@@ -124,7 +130,7 @@ func (d *dao) GetDownloadURLFromShare(ctx context.Context, share *model.ShareInf
 	params.Set("fileId", fileId)
 	params.Set("subFileId", subFileId)
 	params.Set("noCache", utils.GenNoCacheNum())
-	params.Set("accessCode", "undefined")
+	params.Set("accessCode", share.AccessCode)
 	var req *http.Request
 	if req, err = http.NewRequest("GET", _getDownloadUrlAPI+params.Encode(), nil); err != nil {
 		log.Error("http.NewRequest(GET %s) error(%v)", _getDownloadUrlAPI, err)

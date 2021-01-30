@@ -1,6 +1,9 @@
 # 189Cloud-Downloader
 一个189云盘的下载器。（支持分享链接下载、支持Windows、Linux、macOS）Based Go.
 
+## v0.1.2
+1. Support loading share link with access code.
+
 ## v0.1.1
 1. Support keyboard operation in Bash.
 2. Support to cancel download via ctrl+c.

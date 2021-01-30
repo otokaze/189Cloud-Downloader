@@ -91,6 +91,7 @@ func shareAction(ctx *cli.Context) (err error) {
 		log.Error("d.GetShareInfo(%s) error(%v)", ctx.Args().Get(0), err)
 		return
 	}
+	share.AccessCode = ctx.Args().Get(1)
 	if _, paths, err = d.GetShareDirList(ctx.Context, share, 0, 0, ""); err != nil {
 		log.Error("d.GetShareDirList(%s) error(%v)", ctx.Args().Get(0), err)
 		return

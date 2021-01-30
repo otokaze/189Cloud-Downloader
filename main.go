@@ -191,7 +191,5 @@ func main() {
 		},
 	}
 	sort.Sort(cli.FlagsByName(app.Flags))
-	if err := app.Run(os.Args); err != nil {
-		panic(err)
-	}
+	app.Run(os.Args)
 }
