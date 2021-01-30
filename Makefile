@@ -12,7 +12,7 @@ install:
 release:
 		# Clean	
 		go clean
-		rm -rf *.gz
+		rm -rf *.gz ${BINARY}-*
 		# Build for darwin amd64
 		$(eval FILENAME=${BINARY}-darwin-amd64-${VERSION})
 		CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o ${FILENAME} -ldflags ${BUILD_FLAGS}
