@@ -1,5 +1,5 @@
 # 189Cloud-Downloader
-一个189云盘的下载器。（支持分享链接下载、支持Windows、Linux、macOS）Based Go.
+一个不限速的天翼云网盘下载器。（支持分享链接下载、支持Windows、Linux、macOS）Based Go.
 
 ## 使用说明
 ```
