@@ -18,17 +18,7 @@ import (
 	"github.com/otokaze/go-kit/progressbar"
 )
 
-func (d *dao) IsDownloading() bool {
-	return d.bar.IsRunning()
-}
-
-func (d *dao) StopDownload() {
-	d.bar.SetSuffix("取消下载。")
-	d.bar.Stop()
-}
-
 func (d *dao) Download(ctx context.Context, url, toPath string, c int, tmpDirs ...string) (err error) {
-	d.bar = progressbar.New(nil)
 	if err = os.MkdirAll(toPath, 0777); err != nil {
 		log.Error("os.MkdirAll(%s, 0777) error(%v)", toPath, err)
 		return
@@ -96,11 +86,12 @@ func (d *dao) Download(ctx context.Context, url, toPath string, c int, tmpDirs .
 		log.Error("ioutil.TempDir(%s, %s)", tmpPath, matchs[1])
 		return
 	}
-	d.bar.SetMax(b)
-	d.bar.SetPrefix(shortName)
-	d.bar.SetSuffix("下载中...")
-	d.bar.Run()
-	defer d.bar.Stop()
+	var bar = progressbar.New(nil)
+	bar.SetMax(b)
+	bar.SetPrefix(shortName)
+	bar.SetSuffix("下载中...")
+	bar.Run()
+	defer bar.Stop()
 	var wg sync.WaitGroup
 	for i := 0; i < c; i++ {
 		wg.Add(1)
@@ -124,7 +115,7 @@ func (d *dao) Download(ctx context.Context, url, toPath string, c int, tmpDirs .
 				return
 			} else if retry > 0 {
 				log.Info("file(%s) part(%d) 下载失败！正在进行重试...（%d/3）", matchs[1], i, retry)
-				d.bar.Add(-size)
+				bar.Add(-size)
 				size = 0
 				time.Sleep(3 * time.Second)
 			}
@@ -145,12 +136,9 @@ func (d *dao) Download(ctx context.Context, url, toPath string, c int, tmpDirs .
 				downResp.Body.Close()
 				goto download
 			}
-			if _, err = d.readTo(tmpFile, downResp.Body); err != nil {
+			if _, err = d.readTo(tmpFile, downResp.Body, bar); err != nil {
 				downResp.Body.Close()
 				tmpFile.Close()
-				if err == ErrCanceled {
-					return
-				}
 				log.Error("d.readTo(target, part) error(%v)", err)
 				goto download
 			}
@@ -158,45 +146,34 @@ func (d *dao) Download(ctx context.Context, url, toPath string, c int, tmpDirs .
 		}(i, start, end)
 	}
 	wg.Wait()
-	if !d.IsDownloading() {
-		return
-	}
 	var target *os.File
 	if target, err = os.Create(toPath + "/" + matchs[1]); err != nil {
 		log.Error("os.Create(%s/%s) error(%v)", toPath, matchs[1], err)
 		return
 	}
 	defer target.Close()
-	d.bar.SetSuffix("合并中...")
-	d.bar.Set(0)
+	bar.SetSuffix("合并中...")
+	bar.Set(0)
 	for i := 0; i < c; i++ {
 		var part *os.File
 		if part, err = os.Open(fmt.Sprintf("%s/%s.%d", tmpDir, matchs[1], i)); err != nil {
 			log.Error("os.Open(%s/%s.%d) 读取下载文件分片时出错：%v", tmpDir, matchs[1], i, err)
 			return
 		}
-		if _, err = d.readTo(target, part); err != nil {
-			if err == ErrCanceled {
-				err = nil
-				return
-			}
+		if _, err = d.readTo(target, part, bar); err != nil {
 			log.Error("d.readTo(target, part) error(%v)", err)
 			return
 		}
 	}
-	d.bar.Set(b)
-	d.bar.SetSuffix("下载完成。")
+	bar.Set(b)
+	bar.SetSuffix("下载完成")
 	os.RemoveAll(tmpDir)
 	return
 }
 
-func (d *dao) readTo(dst io.Writer, src io.Reader) (written int64, err error) {
+func (d *dao) readTo(dst io.Writer, src io.Reader, bar ...*progressbar.Bar) (written int64, err error) {
 	var buf = make([]byte, 32*1024)
 	for {
-		if !d.IsDownloading() {
-			err = ErrCanceled
-			return
-		}
 		n, readErr := src.Read(buf)
 		if n > 0 {
 			var w int
@@ -211,7 +188,9 @@ func (d *dao) readTo(dst io.Writer, src io.Reader) (written int64, err error) {
 			}
 			if w > 0 {
 				written += int64(w)
-				d.bar.Add(int64(w))
+				if len(bar) > 0 {
+					bar[0].Add(int64(w))
+				}
 			}
 		}
 		if readErr != nil {

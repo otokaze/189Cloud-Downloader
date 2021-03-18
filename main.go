@@ -2,35 +2,12 @@ package main
 
 import (
 	"os"
-	"os/signal"
 	"sort"
-	"syscall"
 
 	"github.com/urfave/cli/v2"
 )
 
 var version string
-
-func init() {
-	var c = make(chan os.Signal)
-	signal.Notify(c, syscall.SIGHUP, syscall.SIGINT, syscall.SIGKILL)
-	go func() {
-		for s := range c {
-			switch s {
-			case syscall.SIGKILL:
-				os.Exit(0)
-			case syscall.SIGHUP:
-				os.Exit(0)
-			case syscall.SIGINT:
-				if d.IsDownloading() {
-					d.StopDownload()
-					continue
-				}
-				os.Exit(0)
-			}
-		}
-	}()
-}
 
 func main() {
 	var app = &cli.App{
@@ -186,6 +163,7 @@ func main() {
 				versionAction(ctx)
 				os.Exit(0)
 			}
+			ctx.App.Command("help").Action(ctx)
 			afterAction(ctx)
 			return
 		},

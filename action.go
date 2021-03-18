@@ -91,7 +91,7 @@ func shareAction(ctx *cli.Context) (err error) {
 		log.Error("d.GetShareInfo(%s) error(%v)", ctx.Args().Get(0), err)
 		return
 	}
-	share.AccessCode = ctx.Args().Get(1)
+	share.AccessCode = strings.TrimSpace(ctx.Args().Get(1))
 	if _, paths, err = d.GetShareDirList(ctx.Context, share, 0, 0, ""); err != nil {
 		log.Error("d.GetShareDirList(%s) error(%v)", ctx.Args().Get(0), err)
 		return
@@ -258,14 +258,15 @@ func getAction(ctx *cli.Context) (err error) {
 		log.Error("找不到任何目录！")
 		return
 	}
-	var path = ctx.Args().Get(0)
-	if path == "." || path == "./" {
-		fileId = paths.GetCurrentPath().FileId
-	}
 	var dir *model.Dir
-	if dir = dirs.Find(fileId); dir == nil {
-		log.Error("找不到文件！请尝试 `ll` 命令遍历目录！")
-		return
+	if fileId == "." || fileId == "./" {
+		fileId = paths.GetCurrentPath().FileId
+		dir = &model.Dir{IsFolder: true, FileID: fileId}
+	} else {
+		if dir = dirs.Find(fileId); dir == nil {
+			log.Error("找不到文件！请尝试 `ll` 命令遍历目录！")
+			return
+		}
 	}
 	var fn func(*model.Dir, model.PathTree, string)
 	fn = func(dir *model.Dir, paths model.PathTree, path string) {
