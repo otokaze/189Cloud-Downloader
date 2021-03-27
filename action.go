@@ -92,6 +92,10 @@ func shareAction(ctx *cli.Context) (err error) {
 		return
 	}
 	share.AccessCode = strings.TrimSpace(ctx.Args().Get(1))
+	if share.IsFile {
+		paths = []*model.Path{{FileName: "share"}}
+		return
+	}
 	if _, paths, err = d.GetShareDirList(ctx.Context, share, 0, 0, ""); err != nil {
 		log.Error("d.GetShareDirList(%s) error(%v)", ctx.Args().Get(0), err)
 		return
@@ -118,9 +122,18 @@ func lsAction(ctx *cli.Context) (err error) {
 			return
 		}
 	} else if share != nil {
-		if dirs, _, err = d.GetShareDirList(ctx.Context, share, pn, ps, order, path); err != nil {
-			log.Error("d.GetShareDirList() pn(%d) ps(%d) fileId(%s) error(%v)", pn, ps, path, err)
-			return
+		if !share.IsFile {
+			if dirs, _, err = d.GetShareDirList(ctx.Context, share, pn, ps, order, path); err != nil {
+				log.Error("d.GetShareDirList() pn(%d) ps(%d) fileId(%s) error(%v)", pn, ps, path, err)
+				return
+			}
+		} else {
+			var dir *model.Dir
+			if dir, err = d.GetShareFileInfo(ctx.Context, share); err != nil {
+				log.Error("d.GetShareFileInfo(%s) error(%v)", share.ShortCode, err)
+				return
+			}
+			dirs = []*model.Dir{dir}
 		}
 	} else {
 		if path != "" {

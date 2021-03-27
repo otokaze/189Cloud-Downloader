@@ -6,6 +6,7 @@ type ShareInfo struct {
 	ShareID    string
 	VerifyCode string
 	Name       string
+	IsFile     bool
 }
 
 func (share *ShareInfo) GetShortName() string {

@@ -18,12 +18,14 @@ import (
 )
 
 const (
-	_listShareDirAPI   = "https://cloud.189.cn/v2/listShareDirByShareIdAndFileId.action?"
-	_getDownloadUrlAPI = "https://cloud.189.cn/v2/getFileDownloadUrl.action?"
+	_listShareDirAPI     = "https://cloud.189.cn/v2/listShareDirByShareIdAndFileId.action?"
+	_getShareFileInfoAPI = "https://cloud.189.cn/shareFileByVerifyCode.action?"
+	_getDownloadUrlAPI   = "https://cloud.189.cn/v2/getFileDownloadUrl.action?"
 )
 
 var (
 	_shareIdReg    = regexp.MustCompile(`var\s+_shareId\s+?=\s+?'(\d+)';`)
+	_shareIdReg2   = regexp.MustCompile(`<input type="hidden" class="shareId" value="(\d+)"/>`)
 	_verifyCodeReg = regexp.MustCompile(`var\s+_verifyCode\s+?=\s+?'(\d+)';`)
 	_shortCodeReg  = regexp.MustCompile(`https://cloud.189.cn/t/((?:\w+){12})`)
 	_shareNameReg  = regexp.MustCompile(`<title>\s+(.*?)\s+</title>`)
@@ -35,6 +37,7 @@ func (d *dao) GetShareInfo(ctx context.Context, url string) (share *model.ShareI
 	if resp, err = d.httpCli.Get(url); err != nil {
 		return
 	}
+	defer resp.Body.Close()
 	var body []byte
 	if body, err = ioutil.ReadAll(resp.Body); err != nil {
 		return
@@ -47,21 +50,27 @@ func (d *dao) GetShareInfo(ctx context.Context, url string) (share *model.ShareI
 	share.ShortCode = matchShortCode[1]
 	var matchShareID []string
 	if matchShareID = _shareIdReg.FindStringSubmatch(string(body)); len(matchShareID) <= 1 {
-		err = errors.New("没能找到shareId，需要作者更新脚本。。。")
-		return
+		if matchShareID = _shareIdReg2.FindStringSubmatch(string(body)); len(matchShareID) <= 1 {
+			err = errors.New("没能找到shareId，需要作者更新脚本。。。")
+			return
+		}
+		share.Name = "share"
+		share.IsFile = true
 	}
 	share.ShareID = matchShareID[1]
-	var matchVerifyCode []string
-	if matchVerifyCode = _verifyCodeReg.FindStringSubmatch(string(body)); len(matchVerifyCode) <= 1 {
-		err = errors.New("没能找到verifyCode，需要作者更新脚本。。。")
-		return
+	if !share.IsFile {
+		var matchVerifyCode []string
+		if matchVerifyCode = _verifyCodeReg.FindStringSubmatch(string(body)); len(matchVerifyCode) <= 1 {
+			err = errors.New("没能找到verifyCode，需要作者更新脚本。。。")
+			return
+		}
+		share.VerifyCode = matchVerifyCode[1]
+		var matchShareName []string
+		if matchShareName = _shareNameReg.FindStringSubmatch(string(body)); len(matchShareName) <= 1 {
+			return
+		}
+		share.Name = strings.Split(matchShareName[1], " ")[0]
 	}
-	share.VerifyCode = matchVerifyCode[1]
-	var matchShareName []string
-	if matchShareName = _shareNameReg.FindStringSubmatch(string(body)); len(matchShareName) <= 1 {
-		return
-	}
-	share.Name = strings.Split(matchShareName[1], " ")[0]
 	return
 }
 
@@ -88,6 +97,7 @@ func (d *dao) GetShareDirList(ctx context.Context, share *model.ShareInfo, pn, p
 		log.Error("httpCli.Get(%s) 请求失败！error(%v)", _listShareDirAPI, err)
 		return
 	}
+	defer resp.Body.Close()
 	var body []byte
 	if body, err = ioutil.ReadAll(resp.Body); err != nil {
 		log.Error("ioutil.ReadAll error(%v)", err)
@@ -124,13 +134,56 @@ func (d *dao) GetShareDirAll(ctx context.Context, share *model.ShareInfo, fileID
 	}
 }
 
+func (d *dao) GetShareFileInfo(ctx context.Context, share *model.ShareInfo) (info *model.Dir, err error) {
+	var params = url.Values{}
+	params.Set("accessCode", share.AccessCode)
+	params.Set("shortCode", share.ShortCode)
+	params.Set("noCache", utils.GenNoCacheNum())
+	var resp *http.Response
+	if resp, err = d.httpCli.Get(_getShareFileInfoAPI + params.Encode()); err != nil {
+		log.Error("httpCli.Get(%s) 请求失败！error(%v)", _getShareFileInfoAPI, err)
+		return
+	}
+	defer resp.Body.Close()
+	var body []byte
+	if body, err = ioutil.ReadAll(resp.Body); err != nil {
+		log.Error("ioutil.ReadAll error(%v)", err)
+		return
+	}
+	var res struct {
+		*model.Dir
+		ErrorVO *struct {
+			ErrorCode string `json:"errorCode"`
+			ErrorMsg  string `json:"errorMsg"`
+		} `json:"errorVO"`
+	}
+	if err = json.Unmarshal(body, &res); err != nil {
+		log.Error("json.Unmarshal() error(%v)", err)
+		return
+	}
+	if res.ErrorVO != nil {
+		err = errors.New(res.ErrorVO.ErrorMsg)
+		return
+	}
+	if res.Dir == nil {
+		err = errors.New("请求失败！可能是访问码不正确。")
+		return
+	}
+	info = res.Dir
+	return
+}
+
 func (d *dao) GetDownloadURLFromShare(ctx context.Context, share *model.ShareInfo, fileId, subFileId string) (URL string, err error) {
 	var params = url.Values{}
 	params.Set("shortCode", share.ShortCode)
-	params.Set("fileId", fileId)
-	params.Set("subFileId", subFileId)
 	params.Set("noCache", utils.GenNoCacheNum())
-	params.Set("accessCode", share.AccessCode)
+	if !share.IsFile {
+		params.Set("fileId", fileId)
+		params.Set("subFileId", subFileId)
+		params.Set("accessCode", share.AccessCode)
+	} else {
+		params.Set("fileId", subFileId)
+	}
 	var req *http.Request
 	if req, err = http.NewRequest("GET", _getDownloadUrlAPI+params.Encode(), nil); err != nil {
 		log.Error("http.NewRequest(GET %s) error(%v)", _getDownloadUrlAPI, err)

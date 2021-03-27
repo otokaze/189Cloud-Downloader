@@ -1,6 +1,10 @@
 # 189Cloud-Downloader
 一个189云盘的下载器。（支持分享链接下载、支持Windows、Linux、macOS）Based Go.
 
+## v0.1.4
+1. 修复单文件分享时找不到shareId的问题。
+2. 修复在个别情况下载文件损坏的问题。
+
 ## v0.1.3
 1. fix `get` current not found.
 

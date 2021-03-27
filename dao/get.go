@@ -74,10 +74,6 @@ func (d *dao) Download(ctx context.Context, url, toPath string, c int, tmpDirs .
 	} else {
 		shortName = string(r[:12]) + "..."
 	}
-	if !strings.Contains(url, "https://cloud.189.cn") &&
-		resp.Header.Get("Accept-Ranges") != "bytes" {
-		c = 1
-	}
 	if c != 1 && b < 10*1024*1024 {
 		c = 1
 	}
@@ -111,10 +107,12 @@ func (d *dao) Download(ctx context.Context, url, toPath string, c int, tmpDirs .
 			)
 		download:
 			if retry++; retry >= 3 {
-				log.Error("file(%s) part(%d) 下载失败！ 发生了如下错误：%v", matchs[1], i, err)
+				println()
+				log.Error("file(%s) part(%d) 下载失败！可能当前资源并不支持多线程下载！", matchs[1], i)
 				return
 			} else if retry > 0 {
-				log.Info("file(%s) part(%d) 下载失败！正在进行重试...（%d/3）", matchs[1], i, retry)
+				println()
+				log.Error("file(%s) part(%d) 下载失败！正在进行重试...（%d/3）", matchs[1], i, retry)
 				bar.Add(-size)
 				size = 0
 				time.Sleep(3 * time.Second)
@@ -136,10 +134,11 @@ func (d *dao) Download(ctx context.Context, url, toPath string, c int, tmpDirs .
 				downResp.Body.Close()
 				goto download
 			}
-			if _, err = d.readTo(tmpFile, downResp.Body, bar); err != nil {
+			time.Sleep(time.Duration(i) * time.Second)
+			var written int64
+			if written, err = d.readTo(tmpFile, downResp.Body, bar); err != nil || written < end-start {
 				downResp.Body.Close()
 				tmpFile.Close()
-				log.Error("d.readTo(target, part) error(%v)", err)
 				goto download
 			}
 			return
@@ -194,8 +193,8 @@ func (d *dao) readTo(dst io.Writer, src io.Reader, bar ...*progressbar.Bar) (wri
 			}
 		}
 		if readErr != nil {
-			if readErr != io.EOF &&
-				readErr != io.ErrUnexpectedEOF {
+			if readErr != io.EOF && readErr != io.ErrUnexpectedEOF {
+				log.Error("d.readTo(target, part) error(%v)", readErr)
 				err = readErr
 				break
 			}
