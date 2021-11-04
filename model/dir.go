@@ -1,75 +1,40 @@
 package model
 
-type Path struct {
-	FileId   string `json:"fileId"`
-	FileName string `json:"fileName"`
-}
-
-func (p *Path) GetShortName() string {
-	var name = []rune(p.FileName)
-	if len(name) <= 6 {
-		return p.FileName
-	}
-	return string(name[:6]) + "..."
-}
+import (
+	"fmt"
+)
 
 type Dir struct {
-	DownloadUrl  string `json:"downloadUrl"`
-	FileIdDigest string `json:"fileIdDigest"`
-	CreateTime   string `json:"createTime"`
-	FileID       string `json:"fileId"`
-	FileName     string `json:"fileName"`
-	FileSize     int64  `json:"fileSize"`
-	FileType     string `json:"fileType"`
-	IsFolder     bool   `json:"isFolder"`
-	LastOpTime   string `json:"lastOpTime"`
-	ParentID     string `json:"parentId"`
+	CreateDate string `json:"createDate"`
+	FileCata   int    `json:"fileCata"`
+	// ψ(｀∇´)ψ 无法吐槽天翼云的工程师，在相同结构下这id字段既可以是number又可以是string。666
+	ID interface{} `json:"id"`
+	// ψ(｀∇´)ψ 同上！
+	ParentID     interface{} `json:"parentId"`
+	LastOpTime   string      `json:"lastOpTime"`
+	MediaType    int         `json:"mediaType"`
+	Md5          string      `json:"md5"`
+	Name         string      `json:"name"`
+	Rev          string      `json:"rev"`
+	Size         int64       `json:"size"`
+	StarLabel    int         `json:"starLabel"`
+	FileListSize int64       `json:"fileListSize"`
+	IsFolder     bool
+	IsHome       bool
 }
 
-type PathTree []*Path
-
-func (p PathTree) GetCurrentPath() *Path {
-	if len(p) > 0 {
-		return p[len(p)-1]
+func (dir *Dir) GetShortName() string {
+	var name = []rune(dir.Name)
+	if len(name) <= 12 {
+		return dir.Name
 	}
-	return nil
+	return string(name[:12]) + "..."
 }
 
-func (p PathTree) GetParentPath() *Path {
-	if len(p) > 1 {
-		return p[len(p)-2]
-	}
-	return nil
+func (dir *Dir) GetID() string {
+	return fmt.Sprintf("%s", dir.ID)
 }
 
-func (p PathTree) GetRootPath() *Path {
-	if len(p) > 0 {
-		return p[0]
-	}
-	return nil
-}
-
-type Dirs []*Dir
-
-func (ds Dirs) Find(fileId string) *Dir {
-	for _, d := range ds {
-		if d.FileID == fileId {
-			return d
-		}
-	}
-	return nil
-}
-
-func (d *Dir) IsPrivate() bool {
-	if d.FileIdDigest != "" {
-		return true
-	}
-	return false
-}
-
-func (d *Dir) IsPublic() bool {
-	if d.FileIdDigest != "" {
-		return false
-	}
-	return true
+func (dir *Dir) GetParentID() string {
+	return fmt.Sprintf("%s", dir.ParentID)
 }

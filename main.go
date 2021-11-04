@@ -69,10 +69,10 @@ func main() {
 				ArgsUsage: "<fileId> or ./ <topath>?",
 				Flags: []cli.Flag{
 					&cli.IntFlag{
-						Name:        "concurrency",
-						Aliases:     []string{"c"},
-						Usage:       "并发数",
-						DefaultText: "10",
+						Name:    "concurrency",
+						Aliases: []string{"c"},
+						Usage:   "并发数",
+						Value:   1,
 					},
 					&cli.StringFlag{
 						Name:        "tmp",
@@ -100,8 +100,8 @@ func main() {
 					},
 					&cli.StringFlag{
 						Name:  "order",
-						Usage: "排序，ASC：顺排 DESC：倒排",
-						Value: "ASC",
+						Usage: "排序：filename、filesize、lastOpTime",
+						Value: "filename",
 					},
 				},
 				Action: lsAction,
@@ -124,8 +124,8 @@ func main() {
 					},
 					&cli.StringFlag{
 						Name:  "order",
-						Usage: "排序，ASC：顺排 DESC：倒排",
-						Value: "ASC",
+						Usage: "排序：filename、filesize、lastOpTime",
+						Value: "filename",
 					},
 				},
 				Action: llAction,

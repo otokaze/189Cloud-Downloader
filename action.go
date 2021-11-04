@@ -8,9 +8,9 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/otokaze/189Cloud-Downloader/dao"
-	"github.com/otokaze/189Cloud-Downloader/model"
-	"github.com/otokaze/189Cloud-Downloader/utils"
+	"189Cloud-Downloader/dao"
+	"189Cloud-Downloader/model"
+	"189Cloud-Downloader/utils"
 
 	"github.com/otokaze/go-kit/log"
 	"github.com/otokaze/go-kit/printcolor"
@@ -19,34 +19,38 @@ import (
 )
 
 var (
-	user  *model.UserInfo
-	share *model.ShareInfo
-	paths model.PathTree
-	dirs  model.Dirs
-	d     = dao.New()
+	d    = dao.New()
+	dirs = map[string]*model.Dir{}
+
+	user    *model.UserInfo
+	share   *model.ShareInfo
+	current *model.Dir
 )
 
 func loginAction(ctx *cli.Context) (err error) {
 	if cookie := ctx.String("cookie"); cookie != "" {
-		return d.LoginWithCookie(ctx.Context, cookie)
-	}
-	if ctx.Args().Len() < 2 {
-		log.Error("请输入格式正确的账号密码！格式：%s", ctx.Command.ArgsUsage)
-		return
-	}
-	var info *model.UserInfo
-	if info, err = d.Login(ctx.Context, ctx.Args().Get(0), ctx.Args().Get(1)); err != nil {
-		log.Error("登陆失败！请确保账号密码正确。")
-		return
-	}
-	if share == nil {
-		if _, paths, err = d.GetHomeDirList(ctx.Context, 1, 0, ""); err != nil {
-			log.Error("d.GetHomeDirList() error(%v)", err)
+		d.LoginWithCookie(ctx.Context, cookie)
+		var info interface{}
+		if info, err = d.GetLoginedInfo(ctx.Context); err != nil {
+			return
+		}
+		user = info.(*model.UserInfo)
+		log.Info("user(%+v)", user)
+	} else {
+		if ctx.Args().Len() < 2 {
+			log.Error("请输入格式正确的账号密码！格式：%s", ctx.Command.ArgsUsage)
+			return
+		}
+		if user, err = d.Login(ctx.Context, ctx.Args().Get(0), ctx.Args().Get(1)); err != nil {
+			log.Error("登陆失败！请确保账号密码正确。")
 			return
 		}
 	}
-	printcolor.Blue("登陆成功！你好，%s\n", info.GetName())
-	user = info
+	if current == nil {
+		current = &model.Dir{ID: "-11", Name: "全部文件", IsFolder: true, IsHome: true}
+		dirs[current.GetID()] = current
+	}
+	printcolor.Blue("登陆成功！你好，%s\n", user.GetName())
 	return
 }
 
@@ -87,19 +91,21 @@ func shareAction(ctx *cli.Context) (err error) {
 		log.Error("请输入格式正确的分享链接！ 格式：%s", ctx.Command.ArgsUsage)
 		return
 	}
-	if share, err = d.GetShareInfo(ctx.Context, ctx.Args().Get(0)); err != nil {
-		log.Error("d.GetShareInfo(%s) error(%v)", ctx.Args().Get(0), err)
+	var (
+		shareCode  string
+		accessCode = ctx.Args().Get(1)
+	)
+	if shareCode = utils.ParseShareCode(ctx.Args().Get(0)); shareCode == "" {
+		err = fmt.Errorf("没有找到ShareCode，请联系作者更新脚本！")
+		printcolor.Red("%v\n", err)
 		return
 	}
-	share.AccessCode = strings.TrimSpace(ctx.Args().Get(1))
-	if share.IsFile {
-		paths = []*model.Path{{FileName: "share"}}
+	if share, err = d.GetShareInfo(ctx.Context, shareCode, accessCode); err != nil {
+		printcolor.Red("%v\n", err)
 		return
 	}
-	if _, paths, err = d.GetShareDirList(ctx.Context, share, 0, 0, ""); err != nil {
-		log.Error("d.GetShareDirList(%s) error(%v)", ctx.Args().Get(0), err)
-		return
-	}
+	current = &model.Dir{ID: share.FileID, Name: share.FileName}
+	dirs[current.GetID()] = current
 	return
 }
 
@@ -113,27 +119,23 @@ func lsAction(ctx *cli.Context) (err error) {
 		order  = ctx.String("order")
 		path   = ctx.Args().Get(0)
 	)
-	if path == "" && paths.GetCurrentPath() != nil {
-		path = paths.GetCurrentPath().FileId
+	if current == nil {
+		println("当前没有目录可载入！请尝试登陆或者加载分享链接。")
+		return
 	}
-	if path == "~" || paths.GetRootPath() != nil && paths.GetRootPath().FileId == "-11" {
-		if dirs, _, err = d.GetHomeDirList(ctx.Context, pn, ps, order, path); err != nil {
-			log.Error("d.GetHomeDirList() pn(%d) ps(%d) fileId(%s) error(%v)", pn, ps, path, err)
+	if path == "" && current != nil {
+		path = current.GetID()
+	}
+	var _dirs []*model.Dir
+	if path == "~" || current.IsHome {
+		if _dirs, err = d.GetHomeDirList(ctx.Context, pn, ps, order, path); err != nil {
+			log.Error("d.GetHomeDirList() pn(%d) ps(%d) folderId(%s) error(%v)", pn, ps, path, err)
 			return
 		}
 	} else if share != nil {
-		if !share.IsFile {
-			if dirs, _, err = d.GetShareDirList(ctx.Context, share, pn, ps, order, path); err != nil {
-				log.Error("d.GetShareDirList() pn(%d) ps(%d) fileId(%s) error(%v)", pn, ps, path, err)
-				return
-			}
-		} else {
-			var dir *model.Dir
-			if dir, err = d.GetShareFileInfo(ctx.Context, share); err != nil {
-				log.Error("d.GetShareFileInfo(%s) error(%v)", share.ShortCode, err)
-				return
-			}
-			dirs = []*model.Dir{dir}
+		if _dirs, err = d.GetShareDirList(ctx.Context, share, pn, ps, order, path); err != nil {
+			log.Error("d.GetShareDirList() pn(%d) ps(%d) folderId(%s) error(%v)", pn, ps, path, err)
+			return
 		}
 	} else {
 		if path != "" {
@@ -141,20 +143,20 @@ func lsAction(ctx *cli.Context) (err error) {
 		}
 		return
 	}
-	for idx, dir := range dirs {
+	for idx, dir := range _dirs {
 		var format string
 		if isLong {
 			if dir.IsFolder {
-				format = fmt.Sprintf("[D]%s\t%s\t%s\t%s", dir.FileID, utils.FormatFileSize(dir.FileSize), dir.CreateTime, dir.FileName)
+				format = fmt.Sprintf("[D]%s\t%s\t%s\t%s", dir.GetID(), utils.FormatFileSize(dir.FileListSize), dir.CreateDate, dir.Name)
 			} else {
-				format = fmt.Sprintf("[F]%s\t%s\t%s\t%s", dir.FileID, utils.FormatFileSize(dir.FileSize), dir.CreateTime, dir.FileName)
+				format = fmt.Sprintf("[F]%s\t%s\t%s\t%s", dir.GetID(), utils.FormatFileSize(dir.Size), dir.CreateDate, dir.Name)
 			}
-			if idx != len(dirs)-1 {
+			if idx != len(_dirs)-1 {
 				format += "\n"
 			}
 		} else {
-			format = dir.FileName
-			if idx != len(dirs)-1 {
+			format = dir.Name
+			if idx != len(_dirs)-1 {
 				format += "\t"
 			}
 		}
@@ -163,6 +165,7 @@ func lsAction(ctx *cli.Context) (err error) {
 		} else {
 			print(format)
 		}
+		dirs[dir.GetID()] = dir
 	}
 	print("\n")
 	return
@@ -183,65 +186,54 @@ func cdAction(ctx *cli.Context) (err error) {
 		log.Error("请输入正确的目标路径的ID！ 格式：%s", ctx.Command.ArgsUsage)
 		return
 	}
-	var (
-		path            = args[0]
-		isHome, isShare bool
-	)
+	var path = args[0]
 	if path == "/" {
-		p := paths.GetRootPath()
-		if p == nil {
-			return
+		if current.IsHome {
+			path = "-11"
+		} else {
+			path = share.FileID
 		}
-		path = p.FileId
 	} else if path == "../" || path == ".." {
-		p := paths.GetParentPath()
-		if p == nil {
+		if current.ParentID == "" {
 			log.Error("当前已在顶级目录！")
 			return
 		}
-		path = p.FileId
-	} else if path == "~" || string(path[0]) == "-" {
-		isHome = true
+		path = current.GetParentID()
+	} else if path == "~" {
+		path = "-11"
 	} else if path == "share" {
-		path = ""
-		isShare = true
-	} else if d := dirs.Find(path); d != nil && !d.IsFolder {
-		log.Error("文件：%s，不是一个目录！", d.FileName)
+		path = share.FileID
+	}
+	if dirs[path] == nil {
+		printcolor.Red("找不到目录: %s，请先尝试`ls`遍历。\n", path)
 		return
 	}
-	var paths2 []*model.Path
-	if !isShare && (isHome || paths.GetRootPath() != nil && paths.GetRootPath().FileId == "-11") {
-		if _, paths2, err = d.GetHomeDirList(ctx.Context, 1, 0, "", path); err != nil {
-			log.Error("d.GetHomeDirList(%s) pn(1) ps(0) order('') error(%v)", path, err)
-			return
-		}
-	} else if isShare || share != nil {
-		if _, paths2, err = d.GetShareDirList(ctx.Context, share, 1, 0, "", path); err != nil {
-			log.Error("d.GetShareDirList(%s) pn(1) ps(0) order('') error(%v)", path, err)
-			return
-		}
-	}
-	if len(paths2) == 0 {
-		printcolor.Red("no such file or directory: %s\n", path)
+	if !dirs[path].IsFolder {
+		printcolor.Red("%s 不是个目录，无法执行`cd`命令。\n", path)
 		return
 	}
-	paths = paths2
+	current = dirs[path]
 	return
 }
 
 func pwdAction(ctx *cli.Context) (err error) {
-	if paths == nil {
-		if share == nil {
-			println("/")
-			return
-		}
-		println("/" + share.Name)
+	if current == nil {
+		println("/")
 		return
 	}
-	for _, path := range paths {
-		print("/" + path.FileName)
+	if current.ParentID == nil {
+		fmt.Printf("/%s\n", current.Name)
+		return
 	}
-	print("\n")
+	var (
+		path   = current.Name
+		parent = current.GetParentID()
+	)
+	for dirs[parent] != nil {
+		path = dirs[parent].Name + "/" + path
+		parent = dirs[parent].GetParentID()
+	}
+	fmt.Printf("/%s\n", path)
 	return
 }
 
@@ -260,60 +252,51 @@ func getAction(ctx *cli.Context) (err error) {
 	var c int
 	if c = ctx.Int("c"); c <= 0 {
 		if c = ctx.Int("concurrency"); c <= 0 {
-			c = 10
+			c = 1
 		}
 	}
 	if user == nil {
 		log.Error("请先登陆189账号！")
 		return
 	}
-	if paths == nil {
-		log.Error("找不到任何目录！")
+	var dir *model.Dir
+	if fileId == "." || fileId == "./" &&
+		current != nil {
+		dir = current
+	} else if fileId == "../" &&
+		dirs[current.GetParentID()] == nil {
+		log.Error("%s 已经是根目录！", current.GetID())
+		return
+	} else {
+		dir = dirs[fileId]
+	}
+	if dir == nil {
+		log.Error("找不到任何文件！")
 		return
 	}
-	var dir *model.Dir
-	if fileId == "." || fileId == "./" {
-		fileId = paths.GetCurrentPath().FileId
-		dir = &model.Dir{IsFolder: true, FileID: fileId}
-	} else {
-		if dir = dirs.Find(fileId); dir == nil {
-			log.Error("找不到文件！请尝试 `ll` 命令遍历目录！")
-			return
-		}
-	}
-	var fn func(*model.Dir, model.PathTree, string)
-	fn = func(dir *model.Dir, paths model.PathTree, path string) {
+	var fn func(*model.Dir, string)
+	fn = func(dir *model.Dir, path string) {
 		if dir.IsFolder {
 			var dirs []*model.Dir
-			if dir.IsPrivate() {
-				dirs, paths, _ = d.GetHomeDirAll(ctx.Context, dir.FileID)
+			if dir.IsHome {
+				dirs, _ = d.GetHomeDirAll(ctx.Context, dir.GetID())
 			} else {
-				dirs, paths, _ = d.GetShareDirAll(ctx.Context, share, dir.FileID)
+				dirs, _ = d.GetShareDirAll(ctx.Context, share, dir.GetID())
 			}
 			for _, d := range dirs {
-				fn(d, paths, path+"/"+dir.FileName)
+				fn(d, path+"/"+dir.Name)
 			}
 			return
 		}
-		var url string
-		if dir.IsPrivate() {
-			if dir.DownloadUrl == "" {
-				log.Error("dir.FileName(%s) dir.DownloadUrl is empty!", dir.FileName)
+		if url, _ := d.GetDownloadURL(ctx.Context, dir.GetID(), share); url != "" {
+			if err = d.Download(ctx.Context, url, path, c, ctx.String("tmp")); err == nil {
 				return
 			}
-			if strings.HasPrefix(dir.DownloadUrl, "//") {
-				dir.DownloadUrl = "https:" + dir.DownloadUrl
-			}
-			url = dir.DownloadUrl
-		} else {
-			pid := paths.GetCurrentPath().FileId
-			url, _ = d.GetDownloadURLFromShare(ctx.Context, share, pid, dir.FileID)
-		}
-		if url != "" {
-			d.Download(ctx.Context, url, path, c, ctx.String("tmp"))
+			file, _ := os.OpenFile("./189Cloud-Downloader.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+			log.Infow(file, "File(%+v), 下载失败！", dir)
 		}
 	}
-	fn(dir, paths, toPath)
+	fn(dir, toPath)
 	return
 }
 
@@ -331,10 +314,8 @@ func afterAction(ctx *cli.Context) (err error) {
 	})
 	for {
 		var processName string
-		if paths != nil {
-			processName = paths.GetCurrentPath().GetShortName()
-		} else if share != nil {
-			processName = share.GetShortName()
+		if current != nil {
+			processName = current.GetShortName()
 		}
 		var input string
 		if input, err = line.Prompt(processName + "> "); err != nil {
@@ -353,7 +334,7 @@ func afterAction(ctx *cli.Context) (err error) {
 		}
 		var command *cli.Command
 		if command = ctx.App.Command(args[0]); command == nil {
-			log.Error("command(%s) not found!", args[0])
+			printcolor.Red("找不到指令: %s\n", args[0])
 			continue
 		}
 		var fset = flag.NewFlagSet(args[0], flag.ContinueOnError)

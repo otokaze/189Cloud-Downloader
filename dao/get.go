@@ -2,10 +2,13 @@ package dao
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	URL "net/url"
 	"os"
 	"regexp"
@@ -14,9 +17,67 @@ import (
 	"sync"
 	"time"
 
+	"189Cloud-Downloader/model"
+	"189Cloud-Downloader/utils"
+
 	"github.com/otokaze/go-kit/log"
 	"github.com/otokaze/go-kit/progressbar"
 )
+
+const (
+	_getDownloadUrlAPI = "https://cloud.189.cn/api/open/file/getFileDownloadUrl.action?"
+)
+
+func (d *dao) GetDownloadURL(ctx context.Context, fileId string, share ...*model.ShareInfo) (URL string, err error) {
+	var params = url.Values{}
+	params.Set("dt", "1")
+	params.Set("fileId", fileId)
+	params.Set("noCache", utils.GenNoCacheNum())
+	if len(share) > 0 && share[0] != nil {
+		params.Set("shareId", strconv.FormatInt(share[0].ShareID, 10))
+	}
+	var req *http.Request
+	if req, err = http.NewRequest("GET", _getDownloadUrlAPI+params.Encode(), nil); err != nil {
+		log.Error("http.NewRequest(GET %s) error(%v)", _getDownloadUrlAPI, err)
+		return
+	}
+	req.Header.Set("accept", "application/json;charset=UTF-8")
+	req.Header.Set("Cookie", fmt.Sprintf("COOKIE_LOGIN_USER=%s", d.token.WebLoginToken))
+	var resp *http.Response
+	if resp, err = d.httpCli.Do(req); err != nil {
+		log.Error("d.httpCli.Do(req) error(%v)", err)
+		return
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		err = fmt.Errorf("resp.StatusCode(%d) is not OK(200)", resp.StatusCode)
+		return
+	}
+	var body []byte
+	if body, err = ioutil.ReadAll(resp.Body); err != nil {
+		log.Error("ioutil.ReadAll(resp.Body) error(%v)", err)
+		return
+	}
+	if len(body) == 0 {
+		err = errors.New("resp.Body is empty")
+		return
+	}
+	var res struct {
+		ResCode         int    `json:"res_code"`
+		ResMsg          string `json:"res_message"`
+		FileDownloadUrl string `json:"fileDownloadUrl"`
+	}
+	if err = json.Unmarshal(body, &res); err != nil {
+		log.Error("json.Unmarshal() error(%v)", err)
+		return
+	}
+	if res.ResCode != 0 {
+		log.Error("d.GetDownloadURL() error(%s)", res.ResMsg)
+		return
+	}
+	URL = res.FileDownloadUrl
+	return
+}
 
 func (d *dao) Download(ctx context.Context, url, toPath string, c int, tmpDirs ...string) (err error) {
 	if err = os.MkdirAll(toPath, 0777); err != nil {
@@ -87,7 +148,6 @@ func (d *dao) Download(ctx context.Context, url, toPath string, c int, tmpDirs .
 	bar.SetPrefix(shortName)
 	bar.SetSuffix("下载中...")
 	bar.Run()
-	defer bar.Stop()
 	var wg sync.WaitGroup
 	for i := 0; i < c; i++ {
 		wg.Add(1)
@@ -99,7 +159,7 @@ func (d *dao) Download(ctx context.Context, url, toPath string, c int, tmpDirs .
 		if start > 0 {
 			start++
 		}
-		go func(i int, start, end int64) (err error) {
+		go func(i int, start, end int64) {
 			defer wg.Done()
 			var (
 				retry = -1
@@ -108,7 +168,9 @@ func (d *dao) Download(ctx context.Context, url, toPath string, c int, tmpDirs .
 		download:
 			if retry++; retry >= 3 {
 				println()
+				err = errors.New("下载失败！")
 				log.Error("file(%s) part(%d) 下载失败！可能当前资源并不支持多线程下载！", matchs[1], i)
+				bar.Stop()
 				return
 			} else if retry > 0 {
 				println()
@@ -137,14 +199,20 @@ func (d *dao) Download(ctx context.Context, url, toPath string, c int, tmpDirs .
 			time.Sleep(time.Duration(i) * time.Second)
 			var written int64
 			if written, err = d.readTo(tmpFile, downResp.Body, bar); err != nil || written < end-start {
-				downResp.Body.Close()
-				tmpFile.Close()
-				goto download
+				if bar.IsRunning() {
+					downResp.Body.Close()
+					tmpFile.Close()
+					goto download
+				}
+				return
 			}
 			return
 		}(i, start, end)
 	}
 	wg.Wait()
+	if !bar.IsRunning() {
+		return
+	}
 	var target *os.File
 	if target, err = os.Create(toPath + "/" + matchs[1]); err != nil {
 		log.Error("os.Create(%s/%s) error(%v)", toPath, matchs[1], err)
@@ -167,12 +235,16 @@ func (d *dao) Download(ctx context.Context, url, toPath string, c int, tmpDirs .
 	bar.Set(b)
 	bar.SetSuffix("下载完成")
 	os.RemoveAll(tmpDir)
+	bar.Stop()
 	return
 }
 
 func (d *dao) readTo(dst io.Writer, src io.Reader, bar ...*progressbar.Bar) (written int64, err error) {
-	var buf = make([]byte, 32*1024)
+	var buf = make([]byte, 4096)
 	for {
+		if len(bar) > 0 && !bar[0].IsRunning() {
+			return
+		}
 		n, readErr := src.Read(buf)
 		if n > 0 {
 			var w int
@@ -193,10 +265,9 @@ func (d *dao) readTo(dst io.Writer, src io.Reader, bar ...*progressbar.Bar) (wri
 			}
 		}
 		if readErr != nil {
-			if readErr != io.EOF && readErr != io.ErrUnexpectedEOF {
+			if readErr != io.EOF {
 				log.Error("d.readTo(target, part) error(%v)", readErr)
 				err = readErr
-				break
 			}
 			break
 		}

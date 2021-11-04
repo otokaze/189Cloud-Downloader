@@ -3,8 +3,8 @@ github.com/cpuguy83/go-md2man/v2 v2.0.0-20190314233015-f79a8a8ca69d h1:U+s90UTSY
 github.com/cpuguy83/go-md2man/v2 v2.0.0-20190314233015-f79a8a8ca69d/go.mod h1:maD7wRr/U5Z6m/iR4s+kqSMx2CaBsrgA7czyZG/E6dU=
 github.com/mattn/go-runewidth v0.0.3 h1:a+kO+98RDGEfo6asOGMmpodZq4FNtnGP54yps8BzLR4=
 github.com/mattn/go-runewidth v0.0.3/go.mod h1:LwmH8dsx7+W8Uxz3IHJYH5QSwggIsqBzpuz5H//U1FU=
-github.com/otokaze/go-kit v0.0.0-20210127084449-6beab6a06ccb h1:iEABw3REnRKNxlrp4f9aF4NhOWCoJCISdeKN1/qM+LQ=
-github.com/otokaze/go-kit v0.0.0-20210127084449-6beab6a06ccb/go.mod h1:51Xo2fbqw3dxEjDyHgJQ5WipcOPXs/Y+Zn3YtUGXeN8=
+github.com/otokaze/go-kit v0.0.0-20211104183029-ff83d7a22d29 h1:lwUm1+3l9xFPFKnLGmHqcs7BZo6DtlSaNeyFI6xcZDQ=
+github.com/otokaze/go-kit v0.0.0-20211104183029-ff83d7a22d29/go.mod h1:51Xo2fbqw3dxEjDyHgJQ5WipcOPXs/Y+Zn3YtUGXeN8=
 github.com/peterh/liner v1.2.1 h1:O4BlKaq/LWu6VRWmol4ByWfzx6MfXc5Op5HETyIy5yg=
 github.com/peterh/liner v1.2.1/go.mod h1:CRroGNssyjTd/qIG2FyxByd2S8JEAZXBl4qUrZf8GS0=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
@@ -15,6 +15,5 @@ github.com/shurcooL/sanitized_anchor_name v1.0.0 h1:PdmoCO6wvbs+7yrJyMORt4/BmY5I
 github.com/shurcooL/sanitized_anchor_name v1.0.0/go.mod h1:1NzhyTcUVG4SuEtjjoZeVRXNmyL/1OwPU0+IJeTBvfc=
 github.com/urfave/cli/v2 v2.3.0 h1:qph92Y649prgesehzOrQjdWyxFOp/QVM+6imKHad91M=
 github.com/urfave/cli/v2 v2.3.0/go.mod h1:LJmUH05zAU44vOAcrfzZQKsZbVcdbOG8rtL3/XcUArI=
-gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405 h1:yhCVgyC4o1eVCa2tZl7eS0r+SDo693bJlVdllGtEeKM=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/yaml.v2 v2.2.3/go.mod h1:hI93XBmqTisBFMUTm0b8Fm+jr3Dg1NNxqwp+5A1VGuI=

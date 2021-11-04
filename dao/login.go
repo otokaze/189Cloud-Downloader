@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/otokaze/189Cloud-Downloader/model"
-	"github.com/otokaze/189Cloud-Downloader/utils"
+	"189Cloud-Downloader/model"
+	"189Cloud-Downloader/utils"
 
 	"github.com/otokaze/go-kit/log"
 )
@@ -60,7 +60,7 @@ type appLoginParams struct {
 }
 
 const (
-	_refSessionAPI          = "https://cloud.189.cn/ssoLogin.action?"
+	_refSessionAPI          = "https://cloud.189.cn/api/portal/ssoLogin.action?"
 	_getParamsAPI           = "https://cloud.189.cn/unifyLoginForPC.action?"
 	_getSessionAPI          = "https://api.cloud.189.cn/getSessionForPC.action?"
 	_getLoginedInfoAPI      = "https://cloud.189.cn/v2/getLoginedInfos.action?"
@@ -177,7 +177,7 @@ func (d *dao) getSessionForPC(ctx context.Context, toUrl string) (sess *appSessi
 	}
 	sess = &appSessionResp{}
 	if err = json.Unmarshal(body, sess); err != nil {
-		log.Error("json.Unmarshal error(%v)", err)
+		log.Error("json.Unmarshal(%s) error(%v)", body, err)
 		return
 	}
 	if sess.ResCode != 0 {
@@ -299,7 +299,6 @@ func (d *dao) RefreshCookieToken(sessKey string) (loginCookie string, err error)
 		log.Error("httpCli.Get(%s) error(%v)", _refSessionAPI+params.Encode(), err)
 		return
 	}
-	defer resp.Body.Close()
 	for _, cookie := range resp.Cookies() {
 		if cookie.Name == "COOKIE_LOGIN_USER" {
 			loginCookie = cookie.Value
@@ -346,6 +345,10 @@ func (d *dao) GetLoginedInfo(ctx context.Context, returnJSON ...bool) (info inte
 	if err = json.Unmarshal(body, userinfo); err != nil {
 		log.Error("json.Unmarshal(body) error(%v)", err)
 		return
+	}
+	if userinfo.UserId == 0 {
+		err = errors.New("登录失败！")
+		log.Error("json.Unmarshal(%s) error(%v)", body, err)
 	}
 	info = userinfo
 	return
