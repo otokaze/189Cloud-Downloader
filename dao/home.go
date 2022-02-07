@@ -91,7 +91,7 @@ func (d *dao) GetHomeDirAll(ctx context.Context, fileID ...string) (dirs []*mode
 			return
 		}
 		dirs = append(dirs, dirs2...)
-		if len(dirs2) <= 100 {
+		if len(dirs2) < 100 {
 			return
 		}
 	}

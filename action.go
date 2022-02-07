@@ -104,7 +104,7 @@ func shareAction(ctx *cli.Context) (err error) {
 		printcolor.Red("%v\n", err)
 		return
 	}
-	current = &model.Dir{ID: share.FileID, Name: share.FileName}
+	current = &model.Dir{ID: share.FileID, Name: share.FileName, IsFolder: share.IsFolder}
 	dirs[current.GetID()] = current
 	return
 }

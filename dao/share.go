@@ -92,7 +92,7 @@ func (d *dao) GetShareDirAll(ctx context.Context, share *model.ShareInfo, fileID
 			return
 		}
 		dirs = append(dirs, dirs2...)
-		if len(dirs2) <= 100 {
+		if len(dirs2) < 100 {
 			return
 		}
 	}
@@ -123,6 +123,7 @@ func (d *dao) GetShareInfo(ctx context.Context, shareCode, accessCode string) (i
 		ResCode        int    `json:"res_code"`
 		ResMsg         string `json:"res_message"`
 		FileId         string `json:"fileId"`
+		ShareId        int64  `json:"shareId"`
 		FileName       string `json:"fileName"`
 		IsFolder       bool   `json:"isFolder"`
 		NeedAccessCode int8   `json:"needAccessCode"`
@@ -137,42 +138,45 @@ func (d *dao) GetShareInfo(ctx context.Context, shareCode, accessCode string) (i
 		log.Error("d.GetShareFileInfo() error(%s)", res.ResMsg)
 		return
 	}
-	if res.NeedAccessCode == 1 && accessCode == "" {
-		err = errors.New("该分享链接需要访问密码，否则无法读取。")
-		return
-	}
-	params = url.Values{}
-	params.Set("shareCode", shareCode)
-	params.Set("accessCode", accessCode)
-	params.Set("noCache", utils.GenNoCacheNum())
-	var checkReq *http.Request
-	if checkReq, err = http.NewRequest("GET", _checkAccessCodeAPI+params.Encode(), nil); err != nil {
-		log.Error("http.NewRequest(GET, %s)", _checkAccessCodeAPI+params.Encode(), err)
-		return
-	}
-	checkReq.Header.Set("accept", "application/json;charset=UTF-8")
-	var checkResp *http.Response
-	if checkResp, err = d.httpCli.Do(checkReq); err != nil {
-		log.Error("httpCli.Get(%s) 请求失败！error(%v)", _checkAccessCodeAPI+params.Encode(), err)
-		return
-	}
-	defer checkResp.Body.Close()
-	if body, err = ioutil.ReadAll(checkResp.Body); err != nil {
-		log.Error("ioutil.ReadAll error(%v)", err)
-		return
-	}
-	var checkRes struct {
-		ResCode int    `json:"res_code"`
-		ResMsg  string `json:"res_message"`
-		ShareId int64  `json:"shareId"`
-	}
-	if err = json.Unmarshal(body, &checkRes); err != nil {
-		log.Error("json.Unmarshal() error(%v)", err)
-		return
-	}
-	if checkRes.ResCode != 0 {
-		log.Error("req checkAccessCodeAPI error(%s)", res.ResMsg)
-		return
+	if res.NeedAccessCode == 1 {
+		if accessCode == "" {
+			err = errors.New("该分享链接需要访问密码，否则无法读取。")
+			return
+		}
+		params = url.Values{}
+		params.Set("shareCode", shareCode)
+		params.Set("accessCode", accessCode)
+		params.Set("noCache", utils.GenNoCacheNum())
+		var checkReq *http.Request
+		if checkReq, err = http.NewRequest("GET", _checkAccessCodeAPI+params.Encode(), nil); err != nil {
+			log.Error("http.NewRequest(GET, %s)", _checkAccessCodeAPI+params.Encode(), err)
+			return
+		}
+		checkReq.Header.Set("accept", "application/json;charset=UTF-8")
+		var checkResp *http.Response
+		if checkResp, err = d.httpCli.Do(checkReq); err != nil {
+			log.Error("httpCli.Get(%s) 请求失败！error(%v)", _checkAccessCodeAPI+params.Encode(), err)
+			return
+		}
+		defer checkResp.Body.Close()
+		if body, err = ioutil.ReadAll(checkResp.Body); err != nil {
+			log.Error("ioutil.ReadAll error(%v)", err)
+			return
+		}
+		var checkRes struct {
+			ResCode int    `json:"res_code"`
+			ResMsg  string `json:"res_message"`
+			ShareId int64  `json:"shareId"`
+		}
+		if err = json.Unmarshal(body, &checkRes); err != nil {
+			log.Error("json.Unmarshal() error(%v)", err)
+			return
+		}
+		if checkRes.ResCode != 0 {
+			log.Error("req checkAccessCodeAPI error(%s)", res.ResMsg)
+			return
+		}
+		res.ShareId = checkRes.ShareId
 	}
 	info = &model.ShareInfo{
 		ShareCode:  shareCode,
@@ -180,7 +184,7 @@ func (d *dao) GetShareInfo(ctx context.Context, shareCode, accessCode string) (i
 		FileName:   res.FileName,
 		IsFolder:   res.IsFolder,
 		FileID:     res.FileId,
-		ShareID:    checkRes.ShareId,
+		ShareID:    res.ShareId,
 	}
 	return
 }

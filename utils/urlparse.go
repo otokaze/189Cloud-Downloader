@@ -4,7 +4,7 @@ import "regexp"
 
 var (
 	_shareCodePart1 = regexp.MustCompile(`https://cloud.189.cn/t/(\w+)`)
-	_shareCodePart2 = regexp.MustCompile(`https://cloud.189.cn/web/share?code=(\w+)`)
+	_shareCodePart2 = regexp.MustCompile(`https://cloud.189.cn/web/share\?code=(\w+)`)
 )
 
 func ParseShareCode(url string) string {
